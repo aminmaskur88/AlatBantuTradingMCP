@@ -1,0 +1,1534 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Stock Analyzer Pro</title>
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        :root {
+            --bg-app: #f4f6f8; --bg-panel: #ffffff; --bg-workspace: #e1e4e8;
+            --border-color: #d1d5db; --text-main: #1f2937; --text-muted: #6b7280;
+            --accent: #2563eb; --accent-hover: #1d4ed8; --item-hover: #f3f4f6;
+            --item-active: #eef2ff; --canvas-bg: #000000;
+            --shadow-canvas: 0 4px 15px rgba(0, 0, 0, 0.2);
+            --buy: #10b981; --sell: #ef4444; --hold: #f59e0b;
+        }
+        body.dark-mode {
+            --bg-app: #111111; --bg-panel: #1e1e1e; --bg-workspace: #161616;
+            --border-color: #333333; --text-main: #e5e5e5; --text-muted: #888888;
+            --accent: #3b82f6; --accent-hover: #60a5fa; --item-hover: #262626;
+            --item-active: #2a3a50; --canvas-bg: #000000;
+            --shadow-canvas: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif; background-color: var(--bg-app);
+            color: var(--text-main); height: 100vh; height: 100dvh; overflow: hidden; overflow-x: hidden;
+            display: grid; grid-template-rows: 52px 1fr; grid-template-columns: 320px 1fr;
+            grid-template-areas: "header header" "sidebar workspace";
+            transition: background-color 0.3s, color 0.3s;
+        }
+        
+        .header-area { grid-area: header; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; padding: 0 20px; z-index: 10; width: 100%; height: 52px; overflow: hidden; }
+        .logo { flex-shrink: 0; flex-shrink: 0; display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 15px; }
+        .logo .material-icons-round { color: var(--accent); }
+        .header-actions { flex-shrink: 0; margin-left: 10px; flex-shrink: 0; display: flex; align-items: center; gap: 8px; }
+        .btn-icon { background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 8px; border-radius: 6px; display: flex; align-items: center; }
+        .btn-icon:hover { background: var(--item-hover); color: var(--text-main); }
+        
+        .sidebar-area { grid-area: sidebar; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; overflow-y: auto; }
+        .sidebar-section { padding: 16px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid var(--border-color); }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-muted); font-weight: 700; display: flex; align-items: center; gap: 6px;}
+        .section-title .material-icons-round { font-size: 14px; }
+        
+        .options-box { background-color: var(--bg-app); border: 1px solid var(--border-color); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+        .form-label { font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; display: block; }
+        .input-box { width: 100%; background-color: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border-color); padding: 10px 12px; border-radius: 8px; font-size: 13px; outline: none; transition: all 0.2s; }
+        .input-box:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--item-active); }
+        
+        .btn-primary { background-color: var(--accent); color: #fff; border: none; padding: 10px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; }
+        .btn-primary:hover { background-color: var(--accent-hover); }
+        .btn-primary:disabled { opacity: 0.7; cursor: not-allowed; }
+        
+        .data-row { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px; }
+        .data-label { color: var(--text-muted); }
+        .data-value { font-weight: 600; text-align: right; }
+        
+        .signal-badge { display: inline-block; padding: 6px 16px; border-radius: 20px; font-weight: 800; font-size: 16px; color: white; text-align: center; width: 100%; margin-bottom: 10px;}
+        .signal-buy { background-color: var(--buy); }
+        .signal-sell { background-color: var(--sell); }
+        .signal-hold { background-color: var(--hold); color: black; }
+        
+        .workspace-area { grid-area: workspace; background-color: var(--bg-workspace); display: flex; flex-direction: column; overflow: hidden; overflow-x: hidden; }
+        .canvas-toolbar { min-height: 48px; background-color: var(--bg-panel); border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; padding: 0 16px; z-index: 5; }
+        
+        .workspace-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .panel-card { background-color: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); }
+        .panel-header { font-size: 14px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;}
+        .panel-header .material-icons-round { color: var(--accent); }
+        
+        .chat-box { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; max-height: 250px; margin-bottom: 10px; padding: 10px; background: var(--bg-app); border-radius: 8px; border: 1px solid var(--border-color);}
+        .message { padding: 8px 12px; border-radius: 8px; font-size: 13px; max-width: 85%; word-wrap: break-word; }
+        .user-message { background-color: var(--accent); color: white; align-self: flex-end; border-bottom-right-radius: 0; }
+        .bot-message { background-color: var(--bg-panel); color: var(--text-main); align-self: flex-start; border-bottom-left-radius: 0; border: 1px solid var(--border-color); }
+        .chat-input-row { display: flex; gap: 8px; }
+        
+        .news-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+        .news-item { border-radius: 8px; background: var(--bg-app); border: 1px solid var(--border-color); font-size: 13px; transition: all 0.2s; overflow: hidden; overflow-x: hidden; }
+        .news-item:hover { border-color: var(--accent); background: var(--item-active); }
+        .news-item a { color: var(--accent); text-decoration: none; font-weight: 600; display: block; padding: 12px; width: 100%; height: 100%; }
+        .news-item a:hover { text-decoration: underline; }
+        
+        .loader-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; backdrop-filter: blur(4px); display: none; }
+        .loader-overlay .material-icons-round { font-size: 48px; animation: spin 2s linear infinite; margin-bottom: 16px; color: var(--accent); }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spin { animation: spin 2s linear infinite; }
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        @media (max-width: 900px) {
+            body { grid-template-columns: 1fr; grid-template-rows: 52px auto 1fr; grid-template-areas: "header" "sidebar" "workspace"; overflow-y: auto; height: auto; }
+            .sidebar-area { border-right: none; border-bottom: 1px solid var(--border-color); max-height: unset; flex-shrink: 0; }
+            .workspace-area { min-height: 70vh; }
+        }
+        
+        #resultsContainer { display: none; }
+
+        /* Floating Chat Widget */
+        .chat-widget-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: none;
+        }
+        .chat-window {
+            width: 350px;
+            height: 450px;
+            background: var(--bg-panel);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: 0 12px 28px rgba(0,0,0,0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; overflow-x: hidden;
+            margin-bottom: 15px;
+            transform-origin: bottom right;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+        .chat-window.open {
+            transform: scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .chat-header {
+            padding: 12px 16px;
+            background: var(--accent);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-header h4 { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        
+        .chat-toggle-btn {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: auto;
+            transition: transform 0.2s;
+        }
+        .chat-toggle-btn:hover { transform: scale(1.05); }
+        .chat-toggle-btn .material-icons-round { font-size: 28px; }
+
+        @media (max-width: 480px) {
+            .chat-window {
+                width: calc(100vw - 40px);
+                height: 60vh;
+            }
+        }
+        
+        .large-chat-modal {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 2000; padding: 20px; justify-content: center; align-items: center; backdrop-filter: blur(10px);
+        }
+        .large-chat-content {
+            background: var(--bg-panel); width: 100%; max-width: 900px; height: 90vh; height: 90dvh; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden; overflow-x: hidden; border: 1px solid var(--border-color); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        @media (max-width: 768px) {
+            .large-chat-modal { padding: 0; }
+            .large-chat-content { height: 100%; height: 100dvh; border-radius: 0; border: none; }
+        }
+
+        /* Custom App Dialog Styles */
+        .app-dialog-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 3000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(4px); display: none; }
+        .app-dialog { background: var(--bg-panel); border: 1px solid var(--border-color); border-radius: 16px; padding: 24px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); animation: dialogIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        @keyframes dialogIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        .app-dialog-title { font-size: 16px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: var(--accent); }
+        .app-dialog-message { font-size: 14px; color: var(--text-main); line-height: 1.5; margin-bottom: 24px; }
+        .app-dialog-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* Ticker Styles */
+        
+        .ticker-container {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            background: var(--bg-app);
+            border-radius: 15px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            border: 1px solid var(--border-color);
+            margin: 0 15px;
+            position: relative;
+        }
+        .ticker-wrap {
+            width: 100%;
+            white-space: nowrap;
+            display: inline-block;
+        }
+        .ticker-move {
+            display: inline-block;
+            
+            animation: ticker 80s linear infinite; /* Diperlambat dari 40s ke 80s */
+        }
+        .ticker-item {
+            display: inline-block;
+            padding: 0 15px;
+            font-size: 11px; /* Ukuran font dikecilkan dari 13px ke 11px */
+            font-weight: 700;
+        }
+        .ticker-up { color: var(--buy); }
+        .ticker-down { color: var(--sell); }
+        @keyframes ticker {
+            0% { transform: translate3d(0, 0, 0); }
+            100% { transform: translate3d(-50%, 0, 0); } /* Loop mulus di titik tengah */
+        }
+        .real-time-clock { flex-shrink: 0; margin-left: auto;  flex-shrink: 0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--accent);
+            padding: 4px 10px;
+            background: var(--bg-app);
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            min-width: 85px;
+            text-align: center;
+        }
+
+        
+        @media (max-width: 600px) {
+            .ticker-container {
+                margin: 0 8px;
+                max-width: 40%;
+            }
+            .logo span:last-child { display: none; }
+            .real-time-clock { min-width: 70px; font-size: 11px; padding: 2px 5px; }
+        }
+            .logo span:last-child { display: none; } /* Sembunyikan teks logo di layar sangat kecil */
+            .real-time-clock { flex-shrink: 0; margin-left: auto;  flex-shrink: 0; min-width: 75px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+    <header class="header-area">
+        <div class="logo">
+            <span class="material-icons-round">show_chart</span>
+            <span>AI Stock Analyzer Pro</span>
+        </div>
+        
+        <div class="ticker-container">
+            <div class="ticker-wrap">
+                <div class="ticker-move" id="stockTicker">
+                    <span class="ticker-item">Memuat data watchlist...</span>
+                </div>
+            </div>
+        </div>
+        <div class="real-time-clock" id="digitalClock">00:00:00</div>
+        <div class="header-actions">
+            <button class="btn-icon" id="btnStockbitPortfolio" title="Aset & Portofolio Stockbit" style="color: #10b981;">
+                <span class="material-icons-round">account_balance_wallet</span>
+            </button>
+            <button class="btn-icon" id="btnDarkMode" title="Toggle Dark Mode"><span class="material-icons-round">dark_mode</span></button>
+            <button class="btn-icon" id="btnFullscreen" title="Fullscreen"><span class="material-icons-round">fullscreen</span></button>
+        </div>
+    </header>
+
+    <aside class="sidebar-area">
+        <div class="sidebar-section">
+            <h3 class="section-title"><span class="material-icons-round">search</span> Analisis Saham</h3>
+            <form id="analyzeForm" class="options-box">
+                <div>
+                    <label class="form-label">Kode Aset / Saham</label>
+                    <input type="text" id="tickerInput" class="input-box" placeholder="Contoh: BBCA, AAPL, BTC-USD" required autocomplete="off" spellcheck="false" autocorrect="off">
+                </div>
+                <button type="submit" class="btn-primary" id="analyzeBtn">
+                    <span class="material-icons-round">rocket_launch</span> ANALISIS SEKARANG
+                </button>
+            </form>
+            <div id="errorAlert" style="color: var(--sell); font-size: 12px; margin-top: 10px; display: none; font-weight: 600; text-align: center;"></div>
+        </div>
+
+        <div class="sidebar-section">
+            <h3 class="section-title">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="material-icons-round">history</span> Riwayat Analisis
+                </div>
+                <button id="btnClearHistory" class="btn-icon" style="margin-left: auto; padding: 2px; color: var(--sell);" title="Hapus Semua Riwayat">
+                    <span class="material-icons-round" style="font-size: 16px;">delete_sweep</span>
+                </button>
+            </h3>
+            <div style="max-height: 250px; overflow-y: auto; padding-right: 5px;">
+                <ul id="recentAnalysesList" style="list-style: none; display: flex; flex-direction: column; gap: 8px;">
+                    <li style="font-size: 12px; color: var(--text-muted);">Belum ada riwayat.</li>
+                </ul>
+            </div>
+        </div>
+
+        <div id="sidebarResults" style="display: none; flex: 1; display: flex; flex-direction: column;">
+            <div class="sidebar-section">
+                <h3 class="section-title"><span class="material-icons-round">info</span> Ringkasan</h3>
+                <div class="options-box">
+                    <div style="text-align: center; margin-bottom: 10px;">
+                        <h2 id="resSymbol" style="margin: 0; font-size: 24px; color: var(--accent);"></h2>
+                        <div id="resCompany" style="font-size: 12px; color: var(--text-muted);"></div>
+                    </div>
+                    <div style="margin-bottom: 10px; padding: 10px; background: var(--bg-panel); border-radius: 8px; border: 1px solid var(--border-color);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="font-size: 11px; color: var(--text-muted); font-weight: 700;">HARGA SAAT INI</div>
+                            <div id="rtIndicator" style="display: none; font-size: 10px; color: var(--buy); font-weight: 800; border: 1px solid var(--buy); padding: 1px 4px; border-radius: 4px; animation: pulse 2s infinite;">RT</div>
+                        </div>
+                        <div id="resPrice" style="color: var(--accent); font-size: 24px; font-weight: 800;">-</div>
+                    </div>
+                    <div class="data-row"><span class="data-label">Perubahan:</span><span class="data-value" id="resChange"></span></div>
+                    <div class="data-row"><span class="data-label">Tren:</span><span class="data-value" id="resTrend" style="text-transform: capitalize;"></span></div>
+                    <div class="data-row"><span class="data-label">Sentimen:</span><span class="data-value" id="resSentiment" style="text-transform: capitalize;"></span></div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title"><span class="material-icons-round">public</span> Kondisi Makro</h3>
+                <div class="options-box">
+                    <div class="data-row"><span class="data-label">USD/IDR:</span><span class="data-value" id="resUsdIdr"></span></div>
+                    <div class="data-row"><span class="data-label">BI Rate:</span><span class="data-value" id="resBiRate"></span></div>
+                    <div class="data-row"><span class="data-label">Emas:</span><span class="data-value" id="resGold"></span></div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title"><span class="material-icons-round">groups</span> Bandarmology</h3>
+                <div class="options-box">
+                    <div id="resForeignFlow" style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">Memuat data arus kas...</div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="section-title"><span class="material-icons-round">lightbulb</span> Rekomendasi AI</h3>
+                <div class="options-box">
+                    <div id="resSignal" class="signal-badge"></div>
+                    <div class="data-row"><span class="data-label">Entry Beli:</span><span class="data-value" style="color: var(--buy);" id="resEntry"></span></div>
+                    <div class="data-row"><span class="data-label">Target:</span><span class="data-value" style="color: var(--accent);" id="resTarget"></span></div>
+                    <div class="data-row"><span class="data-label">Cut Loss:</span><span class="data-value" style="color: var(--sell);" id="resCutloss"></span></div>
+                </div>
+            </div>
+            
+            <div class="sidebar-section" style="flex: 1; display: flex; flex-direction: column;">
+                <h3 class="section-title">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span class="material-icons-round">forum</span> Tanya AI
+                    </div>
+                    <button id="btnExpandChat" class="btn-icon" style="margin-left: auto; padding: 2px;" title="Perbesar Chat">
+                        <span class="material-icons-round" style="font-size: 16px;">open_in_full</span>
+                    </button>
+                </h3>
+                <div class="options-box" style="flex: 1; padding: 10px; display: flex; flex-direction: column;">
+                    <div id="chatBox" class="chat-box">
+                        <div class="message bot-message">
+                            <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Sistem</div>
+                            Halo! Ada yang ingin ditanyakan tentang saham ini?
+                        </div>
+                    </div>
+                    <form id="chatForm" class="chat-input-row">
+                        <input type="text" id="chatInput" class="input-box" placeholder="Ketik pesan..." style="padding: 8px;" autocomplete="off" spellcheck="false" autocorrect="off">
+                        <button type="submit" class="btn-primary" id="chatBtn" style="width: auto; padding: 8px 12px;">
+                            <span class="material-icons-round" style="font-size: 18px;">send</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="workspace-area" style="position: relative;">
+        <div class="canvas-toolbar">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <span class="material-icons-round" style="color:var(--accent);">dashboard</span>
+                <span style="font-size: 13px; font-weight: 700;">WORKSPACE ANALISIS</span>
+                <span id="currentTickerText" style="font-size: 11px; color: var(--text-muted); background: var(--item-hover); padding: 2px 8px; border-radius: 4px; display: none; font-weight: bold;"></span>
+            </div>
+        </div>
+
+        <div id="welcomeScreen" style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--text-muted);">
+            <span class="material-icons-round" style="font-size: 64px; opacity: 0.2; margin-bottom: 16px;">query_stats</span>
+            <h3>Mulai Analisis</h3>
+            <p style="font-size: 13px;">Masukkan kode saham di panel kiri untuk melihat data dan analisis AI.</p>
+        </div>
+
+        <div class="workspace-content" id="resultsContainer">
+            <div class="panel-card" style="padding: 0; overflow: hidden; overflow-x: hidden; flex-shrink: 0; border-radius: 12px; display: flex; flex-direction: column;">
+                <div class="panel-header" style="padding: 12px 16px 12px; border-bottom: 1px solid var(--border-color); margin-bottom: 0;"><span class="material-icons-round">stacked_line_chart</span> Grafik Teknikal Real-Time</div>
+                <div id="tradingview_chart" style="height: 450px; width: 100%; background: var(--canvas-bg);"></div>
+            </div>
+
+            
+            <!-- Stockbit Realtime Orderbook -->
+            <div class="panel-card" id="stockbitOrderbookContainer" style="display:none;">
+                <div class="panel-header" style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="display:flex;align-items:center;gap:8px;">
+                        <span class="material-icons-round" style="color:#10b981;">swap_vert</span>
+                        Stockbit Realtime Orderbook
+                    </span>
+                    <span id="obRefreshStatus" style="font-size:11px; color:var(--text-muted); font-weight:normal;">
+                        <span class="material-icons-round" style="font-size:13px; vertical-align:middle; animation: spin 1s linear infinite;" id="obSpinner">autorenew</span>
+                        Live
+                    </span>
+                </div>
+                <div style="padding:14px; display:flex; flex-direction:column; gap:12px;">
+                    <!-- Pressure Bar -->
+                    <div id="obPressureBox" style="background:var(--bg-app); border-radius:10px; padding:12px 14px; border:1px solid var(--border-color);">
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">Tekanan Pasar</div>
+                        <div id="obPressureLabel" style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-main);">Memuat...</div>
+                        <div style="display:flex; gap:4px; align-items:center; height:14px; border-radius:8px; overflow:hidden; background:var(--border-color);">
+                            <div id="obBidBar" style="height:100%; background:#10b981; border-radius:8px 0 0 8px; transition:width 0.5s ease; width:50%;"></div>
+                            <div id="obOfferBar" style="height:100%; background:#ef4444; border-radius:0 8px 8px 0; transition:width 0.5s ease; width:50%;"></div>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:11px; color:var(--text-muted);">
+                            <span>🟢 BID <strong id="obBidVol">-</strong> lot</span>
+                            <span>OFFER <strong id="obOfferVol">-</strong> lot 🔴</span>
+                        </div>
+                    </div>
+                    <!-- Bid Offer Table -->
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                        <!-- BID -->
+                        <div style="background:var(--bg-app); border-radius:10px; padding:12px; border:1px solid var(--border-color);">
+                            <div style="font-size:11px; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">📗 Antrean Bid (Beli)</div>
+                            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                                <thead><tr>
+                                    <th style="text-align:left; color:var(--text-muted); font-weight:600; padding-bottom:4px;">Harga</th>
+                                    <th style="text-align:right; color:var(--text-muted); font-weight:600; padding-bottom:4px;">Volume</th>
+                                </tr></thead>
+                                <tbody id="obBidTable"><tr><td colspan="2" style="text-align:center; color:var(--text-muted); padding:10px 0;">Memuat...</td></tr></tbody>
+                            </table>
+                        </div>
+                        <!-- OFFER -->
+                        <div style="background:var(--bg-app); border-radius:10px; padding:12px; border:1px solid var(--border-color);">
+                            <div style="font-size:11px; font-weight:700; color:#ef4444; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px;">📕 Antrean Offer (Jual)</div>
+                            <table style="width:100%; font-size:12px; border-collapse:collapse;">
+                                <thead><tr>
+                                    <th style="text-align:left; color:var(--text-muted); font-weight:600; padding-bottom:4px;">Harga</th>
+                                    <th style="text-align:right; color:var(--text-muted); font-weight:600; padding-bottom:4px;">Volume</th>
+                                </tr></thead>
+                                <tbody id="obOfferTable"><tr><td colspan="2" style="text-align:center; color:var(--text-muted); padding:10px 0;">Memuat...</td></tr></tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div style="font-size:10px; color:var(--text-muted); text-align:right;">
+                        Sumber: <strong>Stockbit Gateway (exodus.stockbit.com)</strong> · Auto-refresh setiap 5 detik
+                        <span id="obLastUpdate"></span>
+                    </div>
+                </div>
+            </div>
+            <style>
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            </style>
+            
+            <!-- Deep Technical Indicators Section -->
+            <div class="panel-card">
+                <div class="panel-header"><span class="material-icons-round">analytics</span> Indikator Teknikal Mendalam</div>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div class="options-box">
+                        <div class="section-title" style="margin-bottom: 10px;">Support & Resistance</div>
+                        <div class="data-row"><span class="data-label">Support 1:</span><span class="data-value" id="resS1"></span></div>
+                        <div class="data-row"><span class="data-label">Resistance 1:</span><span class="data-value" id="resR1"></span></div>
+                    </div>
+                    <div class="options-box">
+                        <div class="section-title" style="margin-bottom: 10px;">Momentum & Trend</div>
+                        <div class="data-row"><span class="data-label">BB Upper:</span><span class="data-value" id="resBBU"></span></div>
+                        <div class="data-row"><span class="data-label">BB Lower:</span><span class="data-value" id="resBBL"></span></div>
+                        <div class="data-row"><span class="data-label">MACD Line:</span><span class="data-value" id="resMACD"></span></div>
+                        <div class="data-row"><span class="data-label">MACD Signal:</span><span class="data-value" id="resMACDSig"></span></div>
+                        <div class="data-row"><span class="data-label">MACD Hist:</span><span class="data-value" id="resMACDHist"></span></div>
+                    </div>
+                    <div class="options-box">
+                        <div class="section-title" style="margin-bottom: 10px;">Volume Analysis</div>
+                        <div class="data-row"><span class="data-label">Vol MA20:</span><span class="data-value" id="resVolMA"></span></div>
+                        <div class="data-row"><span class="data-label">Vol Status:</span><span class="data-value" id="resVolStatus"></span></div>
+                        <div class="data-row"><span class="data-label">OBV Trend:</span><span class="data-value" id="resVolTrend"></span></div>
+                    </div>
+                    <div class="options-box">
+                        <div class="section-title" style="margin-bottom: 10px;">Fibonacci (90D)</div>
+                        <div class="data-row"><span class="data-label">Fib 61.8%:</span><span class="data-value" id="resFib618"></span></div>
+                        <div class="data-row"><span class="data-label">Fib 50.0%:</span><span class="data-value" id="resFib500"></span></div>
+                        <div class="data-row"><span class="data-label">Fib 38.2%:</span><span class="data-value" id="resFib382"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div class="panel-card">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-icons-round">psychology</span> Analisis Mendalam AI
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span id="resTimestamp" style="font-size: 10px; opacity: 0.6; font-weight: 500;"></span>
+                            <button id="btnRefreshAnalysis" class="btn-primary" style="width: auto; padding: 4px 10px; font-size: 11px; height: 28px;">
+                                <span class="material-icons-round" style="font-size: 14px;">refresh</span> SEGARKAN
+                            </button>
+                        </div>
+                    </div>
+                    <div id="resAnalysis" style="font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: var(--text-main);"></div>
+                    <div id="resReason" style="font-size: 12px; margin-top: 15px; padding-top: 15px; border-top: 1px dashed var(--border-color); color: var(--text-muted); font-style: italic;"></div>
+                    
+                    <!-- Internal Agent Trail (Expandable) -->
+                    <div id="agentTrailContainer" style="margin-top: 20px; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden;">
+                        <button onclick="toggleAgentTrail()" style="width: 100%; padding: 10px; background: var(--bg-panel); border: none; color: var(--accent); font-size: 11px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
+                            <span><span class="material-icons-round" style="font-size: 14px; vertical-align: middle; margin-right: 5px;">history_edu</span> LIHAT LOG MULTI-AGENT (INTERNAL)</span>
+                            <span id="trailIcon" class="material-icons-round">expand_more</span>
+                        </button>
+                        <div id="agentTrailContent" style="display: none; padding: 15px; background: #1a1a1a; font-family: monospace; font-size: 11px; max-height: 400px; overflow-y: auto;">
+                            <!-- Agent logs will be injected here -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-icons-round">newspaper</span> Berita Terkait
+                        </div>
+                        <button id="btnRefreshNews" class="btn-primary" style="width: auto; padding: 4px 10px; font-size: 11px; height: 28px;">
+                            <span class="material-icons-round" style="font-size: 14px;">refresh</span> REFRESH BERITA
+                        </button>
+                    </div>
+                    <ul class="news-list" id="resNewsList"></ul>
+                </div>
+
+                <div class="panel-card">
+                    <div class="panel-header" style="justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="material-icons-round">bookmark</span> Arsip Berita
+                        </div>
+                    </div>
+                    <form id="formAddArchive" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <input type="url" id="archiveUrl" class="input-box" placeholder="URL Berita" required style="flex: 1;">
+                        <input type="text" id="archiveTitle" class="input-box" placeholder="Judul (opsional)" style="flex: 1;">
+                        <button type="submit" class="btn-primary" style="width: auto; padding: 4px 16px;">Simpan</button>
+                    </form>
+                    <ul class="news-list" id="resArchiveList"></ul>
+                </div>
+            </div>
+        </div>
+        
+        <div id="mainLoader" class="loader-overlay">
+            <span class="material-icons-round">autorenew</span>
+            <h3 style="margin:0;">Menganalisis Data...</h3>
+            <p style="font-size: 13px; opacity: 0.8; margin-top: 8px;">Mengambil harga, berita, dan memproses AI</p>
+        </div>
+    </main>
+
+    <div id="largeChatModal" class="large-chat-modal">
+        <div class="large-chat-content">
+            <div style="padding: 16px 24px; background: var(--accent); color: white; display: flex; justify-content: space-between; align-items: center;">
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span class="material-icons-round">psychology</span>
+                    <div>
+                        <h2 style="font-size: 16px; margin: 0;">Analisis Chat Mendalam</h2>
+                        <div id="modalTickerInfo" style="font-size: 11px; opacity: 0.8; font-weight: 600;"></div>
+                    </div>
+                </div>
+                <button class="btn-icon" id="btnCloseLargeChat" style="color: white; background: rgba(255,255,255,0.1);"><span class="material-icons-round">close</span></button>
+            </div>
+            <div id="largeChatBox" class="chat-box" style="flex: 1; max-height: none; margin: 0; padding: 24px; background: transparent; overflow-y: auto;"></div>
+            <div style="padding: 24px; background: var(--bg-panel); border-top: 1px solid var(--border-color);">
+                <form id="largeChatForm" style="display: flex; gap: 12px; max-width: 100%; margin: 0 auto;">
+                    <input type="text" id="largeChatInput" class="input-box" placeholder="Tanyakan apa saja tentang saham ini..." style="padding: 14px 20px; border-radius: 12px; flex: 1; font-size: 14px;" autocomplete="off" spellcheck="false" autocorrect="off">
+                    <button type="submit" class="btn-primary" id="largeChatBtn" style="width: 50px; height: 50px; border-radius: 12px; min-width: auto; flex-shrink: 0;">
+                        <span class="material-icons-round">send</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div id="appDialogOverlay" class="app-dialog-overlay">
+        <div class="app-dialog">
+            <div id="appDialogTitle" class="app-dialog-title"></div>
+            <div id="appDialogMessage" class="app-dialog-message"></div>
+            <div class="app-dialog-actions">
+                <button id="appDialogCancel" class="btn-primary" style="background: var(--bg-app); color: var(--text-main); border: 1px solid var(--border-color); width: auto;">Batal</button>
+                <button id="appDialogConfirm" class="btn-primary" style="width: auto; min-width: 80px;">Oke</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Custom Dialog Logic
+        function showAppDialog({ title, message, showCancel = false }) {
+            return new Promise((resolve) => {
+                const overlay = document.getElementById('appDialogOverlay');
+                document.getElementById('appDialogTitle').innerHTML = title || 'Info';
+                document.getElementById('appDialogMessage').textContent = message;
+                const cancelBtn = document.getElementById('appDialogCancel');
+                const confirmBtn = document.getElementById('appDialogConfirm');
+                
+                cancelBtn.style.display = showCancel ? 'inline-block' : 'none';
+                overlay.style.display = 'flex';
+                
+                const handleConfirm = () => { overlay.style.display = 'none'; confirmBtn.onclick = null; cancelBtn.onclick = null; resolve(true); };
+                const handleCancel = () => { overlay.style.display = 'none'; confirmBtn.onclick = null; cancelBtn.onclick = null; resolve(false); };
+                
+                confirmBtn.onclick = handleConfirm;
+                cancelBtn.onclick = handleCancel;
+            });
+        }
+        
+        window.appAlert = (message) => showAppDialog({ 
+            title: '<span class="material-icons-round">info</span> Notifikasi', 
+            message 
+        });
+        window.appConfirm = (message) => showAppDialog({ 
+            title: '<span class="material-icons-round">help_outline</span> Konfirmasi', 
+            message, 
+            showCancel: true 
+        });
+    </script>
+
+    <!-- Stockbit Portfolio Modal -->
+    <div id="portfolioModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px);">
+        <div style="background:var(--bg-panel); width:90%; max-width:850px; max-height:85vh; border-radius:16px; border:1px solid var(--border-color); display:flex; flex-direction:column; overflow:hidden; box-shadow:0 12px 36px rgba(0,0,0,0.3);">
+            <div style="padding:16px 20px; border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; background:var(--bg-app);">
+                <div style="display:flex; align-items:center; gap:10px; font-weight:700; font-size:16px;">
+                    <span class="material-icons-round" style="color:#10b981;">account_balance_wallet</span>
+                    <span>Portofolio & Aset Stockbit</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <button id="btnRefreshPortfolio" class="btn-icon" title="Refresh Portofolio">
+                        <span class="material-icons-round">refresh</span>
+                    </button>
+                    <button id="btnClosePortfolio" class="btn-icon" title="Tutup">
+                        <span class="material-icons-round">close</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div style="padding:20px; overflow-y:auto; flex:1; display:flex; flex-direction:column; gap:16px;">
+                <!-- Summary Metrics Grid -->
+                <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                    <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700;">TOTAL NILAI INVESTASI</div>
+                        <div id="pfTotalValue" style="font-size:18px; font-weight:800; color:var(--accent); margin-top:4px;">Rp -</div>
+                    </div>
+                    <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700;">MODAL (TOTAL COST)</div>
+                        <div id="pfTotalCost" style="font-size:18px; font-weight:800; color:var(--text-main); margin-top:4px;">Rp -</div>
+                    </div>
+                    <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700;">UNREALIZED P/L</div>
+                        <div id="pfTotalPL" style="font-size:18px; font-weight:800; color:var(--buy); margin-top:4px;">Rp -</div>
+                    </div>
+                    <div style="background:var(--bg-app); border:1px solid var(--border-color); border-radius:10px; padding:12px;">
+                        <div style="font-size:11px; color:var(--text-muted); font-weight:700;">SALDO KAS / RDN</div>
+                        <div id="pfCashBalance" style="font-size:18px; font-weight:800; color:var(--text-main); margin-top:4px;">Rp -</div>
+                    </div>
+                </div>
+
+                <!-- Holdings Table -->
+                <div style="border:1px solid var(--border-color); border-radius:10px; overflow:hidden;">
+                    <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                        <thead style="background:var(--bg-app); border-bottom:1px solid var(--border-color);">
+                            <tr>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted);">Emiten</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:right;">Lot</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:right;">Avg Price</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:right;">Last Price</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:right;">Market Value</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:right;">P/L (%)</th>
+                                <th style="padding:10px 14px; font-weight:700; color:var(--text-muted); text-align:center;">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pfHoldingsBody">
+                            <tr>
+                                <td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">
+                                    Memuat portofolio aset...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div id="pfStatusMsg" style="font-size:11px; color:var(--text-muted); text-align:right;">
+                    Sumber: <strong>Stockbit Exodus Gateway</strong>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Modal Portofolio Logic
+        const portfolioModal = document.getElementById('portfolioModal');
+        const btnStockbitPortfolio = document.getElementById('btnStockbitPortfolio');
+        const btnClosePortfolio = document.getElementById('btnClosePortfolio');
+        const btnRefreshPortfolio = document.getElementById('btnRefreshPortfolio');
+
+        if (btnStockbitPortfolio) {
+            btnStockbitPortfolio.addEventListener('click', () => {
+                portfolioModal.style.display = 'flex';
+                loadStockbitPortfolio();
+            });
+        }
+        if (btnClosePortfolio) {
+            btnClosePortfolio.addEventListener('click', () => {
+                portfolioModal.style.display = 'none';
+            });
+        }
+        if (portfolioModal) {
+            portfolioModal.addEventListener('click', (e) => {
+                if (e.target === portfolioModal) portfolioModal.style.display = 'none';
+            });
+        }
+        if (btnRefreshPortfolio) {
+            btnRefreshPortfolio.addEventListener('click', loadStockbitPortfolio);
+        }
+
+        async function loadStockbitPortfolio() {
+            const bodyEl = document.getElementById('pfHoldingsBody');
+            bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);"><span class="material-icons-round spin" style="font-size:20px; vertical-align:middle;">autorenew</span> Memuat data aset terbaru...</td></tr>';
+            try {
+                const res = await fetch('/api/stockbit/portfolio');
+                const data = await res.json();
+                
+                if (!data.success && (!data.holdings || data.holdings.length === 0)) {
+                    bodyEl.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--sell);">Gagal memuat portofolio: ${data.error || 'Token tidak valid atau belum diset'}.</td></tr>`;
+                    return;
+                }
+
+                // Update summary cards
+                document.getElementById('pfTotalValue').textContent = 'Rp ' + Number(data.total_market_value || 0).toLocaleString('id-ID');
+                document.getElementById('pfTotalCost').textContent = 'Rp ' + Number(data.total_investment || 0).toLocaleString('id-ID');
+                
+                const plVal = Number(data.total_unrealized_pl || 0);
+                const plPct = Number(data.total_unrealized_pl_pct || 0);
+                const plEl = document.getElementById('pfTotalPL');
+                plEl.textContent = (plVal >= 0 ? '+' : '') + 'Rp ' + plVal.toLocaleString('id-ID') + ` (${plPct}%)`;
+                plEl.style.color = plVal >= 0 ? 'var(--buy)' : 'var(--sell)';
+
+                document.getElementById('pfCashBalance').textContent = 'Rp ' + Number(data.cash_balance || 0).toLocaleString('id-ID');
+
+                // Render table
+                if (!data.holdings || data.holdings.length === 0) {
+                    bodyEl.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--text-muted);">Tidak ada aset saham yang aktif di portofolio saat ini.</td></tr>';
+                    return;
+                }
+
+                let rowsHtml = '';
+                data.holdings.forEach(item => {
+                    const isProfit = item.unrealized_pl >= 0;
+                    const color = isProfit ? 'var(--buy)' : 'var(--sell)';
+                    const sign = isProfit ? '+' : '';
+                    rowsHtml += `
+                        <tr style="border-bottom:1px solid var(--border-color); height:40px;">
+                            <td style="padding:10px 14px; font-weight:700; color:var(--accent);">${item.symbol}</td>
+                            <td style="padding:10px 14px; text-align:right;">${item.lot.toLocaleString('id-ID')}</td>
+                            <td style="padding:10px 14px; text-align:right;">Rp ${item.avg_price.toLocaleString('id-ID')}</td>
+                            <td style="padding:10px 14px; text-align:right;">Rp ${item.last_price.toLocaleString('id-ID')}</td>
+                            <td style="padding:10px 14px; text-align:right;">Rp ${item.market_value.toLocaleString('id-ID')}</td>
+                            <td style="padding:10px 14px; text-align:right; font-weight:700; color:${color};">
+                                ${sign}Rp ${item.unrealized_pl.toLocaleString('id-ID')} (${sign}${item.unrealized_pl_pct}%)
+                            </td>
+                            <td style="padding:10px 14px; text-align:center;">
+                                <button onclick="portfolioAnalyze('${item.symbol}')" class="btn-primary" style="padding:4px 10px; font-size:11px; width:auto; display:inline-flex;">
+                                    Analisis
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                bodyEl.innerHTML = rowsHtml;
+            } catch (err) {
+                console.error(err);
+                bodyEl.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:24px; color:var(--sell);">Terjadi kesalahan koneksi ke server.</td></tr>`;
+            }
+        }
+
+        function portfolioAnalyze(symbol) {
+            portfolioModal.style.display = 'none';
+            const input = document.getElementById('tickerInput');
+            if (input) {
+                input.value = symbol;
+                document.getElementById('analyzeForm').dispatchEvent(new Event('submit'));
+            }
+        }
+
+        const chatBox = document.getElementById('chatBox');
+        let currentSymbol = "";
+        let priceInterval = null;
+
+        // Theme Management
+        const body = document.body;
+        const btnDarkMode = document.getElementById('btnDarkMode');
+        
+        function setTheme(isDark) {
+            if (isDark) {
+                body.classList.add('dark-mode');
+                btnDarkMode.querySelector('span').innerText = 'light_mode';
+                localStorage.setItem('theme', 'dark');
+            } else {
+                body.classList.remove('dark-mode');
+                btnDarkMode.querySelector('span').innerText = 'dark_mode';
+                localStorage.setItem('theme', 'light');
+            }
+            // Update TradingView if current symbol exists
+            if (typeof currentSymbol !== 'undefined' && currentSymbol) loadTradingViewWidget(currentSymbol);
+        }
+
+        // Initialize theme
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            setTheme(true);
+        }
+
+        btnDarkMode.addEventListener('click', () => {
+            setTheme(!body.classList.contains('dark-mode'));
+        });
+
+        async function refreshPriceOnly() {
+            if (!currentSymbol) return;
+            try {
+                const response = await fetch(`/api/price/${currentSymbol}`);
+                const data = await response.json();
+                if (data.price) {
+                    const currencyPrefix = data.currency === 'IDR' ? 'Rp ' : (data.currency === 'USD' ? '$' : data.currency + ' ');
+                    const formattedPrice = parseFloat(data.price).toLocaleString('id-ID');
+                    document.getElementById('resPrice').textContent = `${currencyPrefix}${formattedPrice}`;
+                    
+                    const changeEl = document.getElementById('resChange');
+                    const changeVal = parseFloat(data.change).toFixed(2);
+                    changeEl.textContent = `${changeVal}%`;
+                    changeEl.style.color = (parseFloat(changeVal) > 0) ? 'var(--buy)' : (parseFloat(changeVal) < 0 ? 'var(--sell)' : 'var(--text-muted)');
+                    
+                    const trendEl = document.getElementById('resTrend');
+                    if (parseFloat(changeVal) > 0) trendEl.textContent = 'naik';
+                    else if (parseFloat(changeVal) < 0) trendEl.textContent = 'turun';
+                    else trendEl.textContent = 'stagnan';
+                }
+            } catch (e) {
+                console.error("Failed to refresh price:", e);
+            }
+        }
+
+        const largeChatModal = document.getElementById('largeChatModal');
+        const largeChatBox = document.getElementById('largeChatBox');
+        const largeChatInput = document.getElementById('largeChatInput');
+        const largeChatForm = document.getElementById('largeChatForm');
+        const recentAnalysesList = document.getElementById('recentAnalysesList');
+
+        document.getElementById('btnFullscreen').addEventListener('click', () => {
+            if (!document.fullscreenElement) { document.documentElement.requestFullscreen().catch(() => {}); } 
+            else { document.exitFullscreen(); }
+        });
+        document.addEventListener('fullscreenchange', () => {
+            const btn = document.getElementById('btnFullscreen');
+            if (btn && btn.querySelector('span')) {
+                btn.querySelector('span').innerText = document.fullscreenElement ? 'fullscreen_exit' : 'fullscreen';
+            }
+        });
+
+        // --- STOCKBIT REALTIME ORDERBOOK ---
+        let obRefreshInterval = null;
+        function startOrderbookRefresh(symbol) {
+            if (obRefreshInterval) clearInterval(obRefreshInterval);
+            fetchOrderbook(symbol);
+            obRefreshInterval = setInterval(() => fetchOrderbook(symbol), 5000);
+        }
+
+        function fetchOrderbook(symbol) {
+            if (!symbol) return;
+            fetch(`/api/stockbit/orderbook?symbol=${symbol.replace('.JK','').toUpperCase()}`)
+                .then(r => r.json())
+                .then(res => renderOrderbook(res))
+                .catch(err => console.warn('Orderbook fetch error:', err));
+        }
+
+        function renderOrderbook(res) {
+            const now = new Date().toLocaleTimeString('id-ID');
+            document.getElementById('obLastUpdate').textContent = ` · Update: ${now}`;
+
+            if (!res || !res.success) {
+                const errMsg = (res && res.error) ? res.error : 'Koneksi Stockbit terputus';
+                document.getElementById('obPressureLabel').textContent = '⚠️ ' + errMsg;
+                document.getElementById('obPressureLabel').style.color = '#ef4444';
+                document.getElementById('obBidVol').textContent = '0';
+                document.getElementById('obOfferVol').textContent = '0';
+                document.getElementById('obBidBar').style.width = '50%';
+                document.getElementById('obOfferBar').style.width = '50%';
+                document.getElementById('obBidTable').innerHTML = `<tr><td colspan="2" style="text-align:center;color:#ef4444;padding:10px 0;">${errMsg}</td></tr>`;
+                document.getElementById('obOfferTable').innerHTML = `<tr><td colspan="2" style="text-align:center;color:#ef4444;padding:10px 0;">${errMsg}</td></tr>`;
+                return;
+            }
+
+            const obData = res.data || [];
+            let bidVol = 0, offerVol = 0;
+            const bidRows = [], offerRows = [];
+
+            if (obData.length === 0) {
+                document.getElementById('obPressureLabel').textContent = '⏸ Pasar Tutup / Antrean Kosong';
+                document.getElementById('obPressureLabel').style.color = 'var(--text-main)';
+                document.getElementById('obBidVol').textContent = '0';
+                document.getElementById('obOfferVol').textContent = '0';
+                document.getElementById('obBidBar').style.width = '50%';
+                document.getElementById('obOfferBar').style.width = '50%';
+                document.getElementById('obBidTable').innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:10px 0;">Pasar tutup / antrean kosong</td></tr>';
+                document.getElementById('obOfferTable').innerHTML = '<tr><td colspan="2" style="text-align:center;color:var(--text-muted);padding:10px 0;">Pasar tutup / antrean kosong</td></tr>';
+                return;
+            }
+
+            obData.forEach(item => {
+                if (item.bid_price && item.bid_volume) {
+                    bidVol += item.bid_volume;
+                    bidRows.push(`<tr>
+                        <td style="padding:3px 0;color:#10b981;font-weight:600;">${item.bid_price.toLocaleString('id-ID')}</td>
+                        <td style="text-align:right;padding:3px 0;">${item.bid_volume.toLocaleString('id-ID')}</td>
+                    </tr>`);
+                }
+                if (item.offer_price && item.offer_volume) {
+                    offerVol += item.offer_volume;
+                    offerRows.push(`<tr>
+                        <td style="padding:3px 0;color:#ef4444;font-weight:600;">${item.offer_price.toLocaleString('id-ID')}</td>
+                        <td style="text-align:right;padding:3px 0;">${item.offer_volume.toLocaleString('id-ID')}</td>
+                    </tr>`);
+                }
+            });
+
+            const total = bidVol + offerVol || 1;
+            const bidPct = Math.round((bidVol / total) * 100);
+            const offerPct = 100 - bidPct;
+
+            let pressure = '⚖️ Seimbang (Netral)';
+            let pressureColor = 'var(--text-main)';
+            if (bidVol > offerVol * 1.3) { pressure = '🟢 DOMINAN BUY — Akumulasi kuat'; pressureColor = '#10b981'; }
+            else if (offerVol > bidVol * 1.3) { pressure = '🔴 DOMINAN SELL — Distribusi / Tekanan jual'; pressureColor = '#ef4444'; }
+
+            document.getElementById('obPressureLabel').textContent = pressure;
+            document.getElementById('obPressureLabel').style.color = pressureColor;
+            document.getElementById('obBidBar').style.width = bidPct + '%';
+            document.getElementById('obOfferBar').style.width = offerPct + '%';
+            document.getElementById('obBidVol').textContent = bidVol.toLocaleString('id-ID');
+            document.getElementById('obOfferVol').textContent = offerVol.toLocaleString('id-ID');
+            document.getElementById('obBidTable').innerHTML = bidRows.slice(0,7).join('') || '<tr><td colspan="2" style="color:var(--text-muted);text-align:center">-</td></tr>';
+            document.getElementById('obOfferTable').innerHTML = offerRows.slice(0,7).join('') || '<tr><td colspan="2" style="color:var(--text-muted);text-align:center">-</td></tr>';
+        }
+
+        function loadTradingViewWidget(symbol) {
+            let tvSymbol = symbol.toUpperCase().replace("-", "");
+            if (tvSymbol.length === 4 && !tvSymbol.includes(':') && !["AAPL", "TSLA", "MSFT", "AMZN", "META"].includes(tvSymbol)) {
+                tvSymbol = "IDX:" + tvSymbol;
+            }
+            const isDark = document.body.classList.contains('dark-mode');
+            document.getElementById('tradingview_chart').innerHTML = '';
+            new TradingView.widget({
+                "container_id": "tradingview_chart", "symbol": tvSymbol, "interval": "D",
+                "theme": isDark ? "dark" : "light", "style": "1", "locale": "id",
+                "width": "100%", "height": 450, "timezone": "Asia/Jakarta",
+                "toolbar_bg": "transparent", "enable_publishing": false,
+                "allow_symbol_change": true, "save_image": false
+            });
+        }
+        
+        function formatChatToHtml(history) {
+            let html = '';
+            history.forEach((msg, idx) => {
+                if (idx === 0 && msg.role === 'user') return; // Skip initial context
+                if (msg.parts && msg.parts[0] && msg.parts[0].text) {
+                    const text = msg.parts[0].text;
+                    if (text.includes('[Sistem: Ringkasan')) return; // Hide internal summaries
+                    if (text === 'Baik, saya simpan ringkasan tersebut dalam memori saya.') return;
+                    
+                    const role = msg.role === 'user' ? 'user' : 'bot';
+                    const label = msg.role === 'user' ? 'Anda' : 'AI';
+                    const timeLabel = msg.time ? msg.time : label;
+                    // Strip [HH:MM] or [DD Mon YYYY HH:MM] if it appears at the very beginning of the text
+                    const cleanedText = text.replace(/^\[\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}\] /, '')
+                                           .replace(/^\[\d{2}:\d{2}\] /, '');
+                    const formatted = cleanedText.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                    html += `<div class="message ${role}-message">
+                                <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">${timeLabel}</div>
+                                ${formatted}
+                             </div>`;
+                }
+            });
+            return html;
+        }
+
+        function restoreState(data) {
+            currentSymbol = data.data.symbol;
+            document.getElementById('rtIndicator').style.display = 'block';
+            if (priceInterval) clearInterval(priceInterval);
+            priceInterval = setInterval(refreshPriceOnly, 30000);
+
+            const resData = data.data;
+            
+            const aiRes = data.ai_result;
+            
+            // Show Stockbit Orderbook Panel
+            const stockbitContainer = document.getElementById('stockbitOrderbookContainer');
+            if (stockbitContainer) {
+                stockbitContainer.style.display = 'block';
+                startOrderbookRefresh(currentSymbol);
+            }
+
+            document.getElementById('resSymbol').textContent = currentSymbol.toUpperCase();
+            document.getElementById('resCompany').textContent = resData.company_name;
+            
+            const currencyPrefix = resData.currency === 'IDR' ? 'Rp ' : (resData.currency === 'USD' ? '$' : resData.currency + ' ');
+            const formattedPrice = resData.price ? parseFloat(resData.price).toLocaleString('id-ID') : '-';
+            document.getElementById('resPrice').textContent = `${currencyPrefix}${formattedPrice}`;
+            
+            const changeEl = document.getElementById('resChange');
+            const changeVal = resData.change ? parseFloat(resData.change).toFixed(2) : '0.00';
+            changeEl.textContent = `${changeVal}%`;
+            changeEl.style.color = (parseFloat(changeVal) > 0) ? 'var(--buy)' : (parseFloat(changeVal) < 0 ? 'var(--sell)' : 'var(--text-muted)');
+
+            document.getElementById('resTrend').textContent = resData.market_trend || '-';
+            document.getElementById('resSentiment').textContent = resData.sentiment || '-';
+
+            // Populate Macro Data
+            const macro = data.macro_data || resData.macro_data || {};
+            document.getElementById('resUsdIdr').textContent = macro.usd_idr || '-';
+            document.getElementById('resBiRate').textContent = macro.bi_rate || '-';
+            document.getElementById('resGold').textContent = macro.gold || '-';
+
+            // Populate Foreign Flow
+            const foreign = data.foreign_flow || resData.foreign_flow || 'Data tidak tersedia.';
+            document.getElementById('resForeignFlow').textContent = foreign.length > 300 ? foreign.substring(0, 300) + '...' : foreign;
+
+            // Populate Deep Technical Indicators
+            const formatNum = (val) => (val === null || val === undefined || isNaN(parseFloat(val))) ? '-' : parseFloat(val).toLocaleString('id-ID');
+            document.getElementById('resS1').textContent = formatNum(resData.support_1);
+            document.getElementById('resR1').textContent = formatNum(resData.resistance_1);
+            document.getElementById('resBBU').textContent = formatNum(resData.bb_upper);
+            document.getElementById('resBBL').textContent = formatNum(resData.bb_lower);
+            document.getElementById('resMACD').textContent = formatNum(resData.macd);
+            document.getElementById('resMACDSig').textContent = formatNum(resData.macd_signal);
+            document.getElementById('resMACDHist').textContent = formatNum(resData.macd_hist);
+            
+            document.getElementById('resVolMA').textContent = formatNum(resData.vol_ma20);
+            document.getElementById('resVolStatus').textContent = resData.vol_status || '-';
+            document.getElementById('resVolTrend').textContent = resData.volume_trend || '-';
+            
+            document.getElementById('resFib618').textContent = formatNum(resData.fib_618);
+            document.getElementById('resFib500').textContent = formatNum(resData.fib_500);
+            document.getElementById('resFib382').textContent = formatNum(resData.fib_382);
+
+            const signalBadge = document.getElementById('resSignal');
+            signalBadge.textContent = aiRes.signal;
+            signalBadge.className = 'signal-badge ' + (aiRes.signal.toUpperCase() === 'BUY' ? 'signal-buy' : (aiRes.signal.toUpperCase() === 'SELL' ? 'signal-sell' : 'signal-hold'));
+
+            const fn = (val) => (val === null || val === undefined || isNaN(parseFloat(val))) ? '-' : parseFloat(val).toLocaleString('id-ID');
+            document.getElementById('resEntry').textContent = fn(aiRes.entry_price);
+            document.getElementById('resTarget').textContent = fn(aiRes.target_price);
+            document.getElementById('resCutloss').textContent = fn(aiRes.cut_loss_price);
+            
+            document.getElementById('resAnalysis').textContent = aiRes.analysis;
+            document.getElementById('resReason').innerHTML = `<b>Alasan AI:</b> ${aiRes.reason}`;
+
+            // Render Multi-Agent Trail
+            const trailContent = document.getElementById('agentTrailContent');
+            if (aiRes.agent_trail && trailContent) {
+                let trailHtml = '';
+                aiRes.agent_trail.forEach(step => {
+                    const agentColor = step.agent.includes('Executor') ? '#4285f4' : (step.agent.includes('Validator') ? '#ea4335' : '#34a853');
+                    trailHtml += `<div style="margin-bottom: 12px; border-bottom: 1px solid #333; padding-bottom: 8px;">
+                        <span style="color: ${agentColor}; font-weight: bold;">[${step.agent}${step.iteration ? ' - Iterasi ' + step.iteration : ''}]</span><br>
+                        <pre style="white-space: pre-wrap; margin-top: 5px; color: #ccc;">${JSON.stringify(step.output, null, 2)}</pre>
+                    </div>`;
+                });
+                trailContent.innerHTML = trailHtml;
+            } else if (trailContent) {
+                trailContent.innerHTML = '<div style="color: #666;">Data log multi-agent tidak tersedia untuk analisis ini.</div>';
+            }
+
+            if (data.timestamp) {
+                const ts = new Date(data.timestamp);
+                document.getElementById('resTimestamp').textContent = `Update: ${ts.toLocaleTimeString('id-ID', {hour: '2-digit', minute:'2-digit'})}`;
+            } else {
+                document.getElementById('resTimestamp').textContent = '';
+            }
+
+            const newsList = document.getElementById('resNewsList');
+            newsList.innerHTML = '';
+            if (resData.news && resData.news.length > 0) {
+                resData.news.forEach(n => {
+                    const li = document.createElement('li');
+                    li.className = 'news-item';
+                    li.innerHTML = n.link ? `<a href="${n.link}" target="_blank">${n.title}</a>` : `<div style="padding:12px;">${n.title}</div>`;
+                    newsList.appendChild(li);
+                });
+            } else {
+                newsList.innerHTML = '<li class="news-item" style="color: var(--text-muted); padding:12px;">Tidak ada berita terbaru.</li>';
+            }
+
+            if (data.chatHtml) {
+                chatBox.innerHTML = data.chatHtml;
+            } else if (chatBox.innerHTML.includes('user-message')) {
+                // Keep existing chat if we have actual messages and none provided in refresh
+                console.log("Preserving existing chat history UI");
+            } else {
+                chatBox.innerHTML = `
+                    <div class="message bot-message">
+                        <div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">Sistem</div>
+                        Halo! Ada yang ingin ditanyakan tentang saham ini?
+                    </div>`;
+            }
+            
+            loadTradingViewWidget(currentSymbol);
+            loadArchives(currentSymbol);
+
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('sidebarResults').style.display = 'flex';
+            document.getElementById('resultsContainer').style.display = 'flex';
+            document.getElementById('currentTickerText').textContent = currentSymbol.toUpperCase();
+            document.getElementById('currentTickerText').style.display = 'inline-block';
+        }
+        
+        function saveChatToSession() {
+            if (!currentSymbol) return;
+            const savedData = JSON.parse(sessionStorage.getItem(`analysis_${currentSymbol.toUpperCase()}`));
+            if (savedData) {
+                savedData.chatHtml = chatBox.innerHTML;
+                sessionStorage.setItem(`analysis_${currentSymbol.toUpperCase()}`, JSON.stringify(savedData));
+            }
+        }
+
+        async function updateRecentAnalysesList() {
+            recentAnalysesList.innerHTML = '<li style="font-size: 12px; color: var(--text-muted); text-align:center;"><span class="material-icons-round spin" style="font-size:16px;">sync</span> Memuat...</li>';
+            try {
+                const res = await fetch('/api/history/list');
+                const items = await res.json();
+                recentAnalysesList.innerHTML = '';
+                if (items.length === 0) {
+                    recentAnalysesList.innerHTML = '<li style="font-size: 12px; color: var(--text-muted);">Belum ada riwayat.</li>';
+                    return;
+                }
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.style = 'display: flex; justify-content: space-between; align-items: center; font-size: 13px; background: var(--bg-app); padding: 8px 12px; border-radius: 6px;';
+                    const displayName = item.symbol;
+                    li.innerHTML = `<span style="font-weight: 700; color: var(--accent);">${displayName}</span>
+                                    <div style="display: flex; gap: 4px;">
+                                        <button class="btn-primary load-history-btn" data-symbol="${item.symbol}" style="width: auto; padding: 4px 10px; font-size: 11px; flex-shrink: 0;">Muat</button>
+                                        <button class="btn-icon delete-history-btn" data-symbol="${item.symbol}" style="color: var(--sell); padding: 4px; border: 1px solid var(--border-color);" title="Hapus"><span class="material-icons-round" style="font-size: 16px; pointer-events: none;">delete</span></button>
+                                    </div>`;
+                    recentAnalysesList.appendChild(li);
+                });
+            } catch(e) {
+                recentAnalysesList.innerHTML = '<li style="font-size: 12px; color: var(--sell);">Gagal memuat riwayat.</li>';
+            }
+        }
+        
+        recentAnalysesList.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('load-history-btn')) {
+                const symbol = e.target.dataset.symbol;
+                document.getElementById('mainLoader').style.display = 'flex';
+                try {
+                    const res = await fetch(`/api/history/get/${symbol}`);
+                    const detail = await res.json();
+                    if (detail.analysis) {
+                        detail.analysis.chatHtml = formatChatToHtml(detail.history);
+                        detail.analysis.rawHistory = detail.history;
+                        restoreState(detail.analysis);
+                    }
+                } finally {
+                    document.getElementById('mainLoader').style.display = 'none';
+                }
+            } else if (e.target.classList.contains('delete-history-btn')) {
+                const symbol = e.target.dataset.symbol;
+                if (await appConfirm(`Hapus riwayat analisis untuk saham ${symbol}?`)) {
+                    sessionStorage.removeItem(`analysis_${symbol}`);
+                    fetch('/api/chat/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: symbol }) });
+                    updateRecentAnalysesList();
+                    if (currentSymbol === symbol) {
+                        document.getElementById('resultsContainer').style.display = 'none';
+                        document.getElementById('sidebarResults').style.display = 'none';
+                        document.getElementById('welcomeScreen').style.display = 'flex';
+                        currentSymbol = "";
+                        if (priceInterval) clearInterval(priceInterval);
+                    }
+                }
+            }
+        });
+
+        document.getElementById('btnClearHistory').addEventListener('click', async () => {
+            if (!currentSymbol) {
+                await appAlert('Silakan pilih saham terlebih dahulu atau hapus menggunakan tombol di daftar riwayat.');
+                return;
+            }
+            if (await appConfirm(`Hapus riwayat analisis untuk saham ${currentSymbol.toUpperCase()}?`)) {
+                sessionStorage.removeItem(`analysis_${currentSymbol.toUpperCase()}`);
+                fetch('/api/chat/clear', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: currentSymbol }) });
+                updateRecentAnalysesList();
+                document.getElementById('resultsContainer').style.display = 'none';
+                document.getElementById('sidebarResults').style.display = 'none';
+                document.getElementById('welcomeScreen').style.display = 'flex';
+                currentSymbol = "";
+                if (priceInterval) clearInterval(priceInterval);
+            }
+        });
+
+        document.getElementById('analyzeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const ticker = document.getElementById('tickerInput').value.trim();
+            if(!ticker) return;
+            document.getElementById('errorAlert').style.display = 'none';
+            document.getElementById('mainLoader').style.display = 'flex';
+            document.getElementById('analyzeBtn').disabled = true;
+            try {
+                const response = await fetch('/api/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: ticker }) });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Server error');
+                data.data.symbol = ticker.toUpperCase();
+                sessionStorage.setItem(`analysis_${ticker.toUpperCase()}`, JSON.stringify(data));
+                restoreState(data);
+                updateRecentAnalysesList();
+            } catch (error) {
+                document.getElementById('errorAlert').textContent = error.message;
+                document.getElementById('errorAlert').style.display = 'block';
+            } finally {
+                document.getElementById('mainLoader').style.display = 'none';
+                document.getElementById('analyzeBtn').disabled = false;
+            }
+        });
+
+        document.getElementById('btnRefreshNews').addEventListener('click', async () => {
+            if (!currentSymbol) return;
+            const btn = document.getElementById('btnRefreshNews');
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round spin" style="font-size: 14px;">sync</span>';
+            try {
+                const response = await fetch('/api/refresh_news', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol: currentSymbol }) });
+                const data = await response.json();
+                if (data.news) {
+                    const list = document.getElementById('resNewsList');
+                    list.innerHTML = '';
+                    data.news.forEach(n => {
+                        const li = document.createElement('li');
+                        li.className = 'news-item';
+                        li.innerHTML = n.link ? `<a href="${n.link}" target="_blank">${n.title}</a>` : `<div style="padding:12px;">${n.title}</div>`;
+                        list.appendChild(li);
+                    });
+                }
+            const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            const updateMsg = document.createElement('div');
+            updateMsg.className = 'message bot-message';
+            updateMsg.style.background = 'var(--item-active)';
+            updateMsg.innerHTML = `<div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">${now}</div>📰 Daftar berita telah diperbarui.`;
+            chatBox.appendChild(updateMsg);
+            largeChatBox.appendChild(updateMsg.cloneNode(true));
+            chatBox.scrollTop = chatBox.scrollHeight;
+            largeChatBox.scrollTop = largeChatBox.scrollHeight;
+            saveChatToSession();
+            } finally { btn.disabled = false; btn.innerHTML = orig; }
+        });
+
+        document.getElementById('btnRefreshAnalysis').addEventListener('click', async () => {
+            if (!currentSymbol) return;
+            if (!await appConfirm(`Segarkan analisis AI untuk ${currentSymbol}? Ini akan memakan waktu sekitar 10-20 detik.`)) return;
+            
+            const btn = document.getElementById('btnRefreshAnalysis');
+            btn.disabled = true;
+            const orig = btn.innerHTML;
+            btn.innerHTML = '<span class="material-icons-round spin" style="font-size: 14px;">sync</span>';
+            
+            try {
+                const response = await fetch('/api/refresh_analysis', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ symbol: currentSymbol }) 
+                });
+                const data = await response.json();
+                if (data.error) {
+                    await appAlert("Gagal menyegarkan analisis: " + data.error);
+                } else {
+                    restoreState(data);
+                    const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const updateMsg = document.createElement('div');
+                    updateMsg.className = 'message bot-message';
+                    updateMsg.style.background = 'var(--accent)';
+                    updateMsg.style.color = 'white';
+                    updateMsg.innerHTML = `<div style="font-size: 10px; opacity: 0.8; margin-bottom: 4px;">${now}</div>✨ Analisis AI mendalam telah diperbarui berdasarkan data pasar terbaru.`;
+                    chatBox.appendChild(updateMsg);
+                    largeChatBox.appendChild(updateMsg.cloneNode(true));
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                    largeChatBox.scrollTop = largeChatBox.scrollHeight;
+                    saveChatToSession();
+                }
+            } catch (e) {
+                await appAlert("Terjadi kesalahan: " + e.message);
+            } finally { 
+                btn.disabled = false; 
+                btn.innerHTML = orig; 
+            }
+        });
+
+        document.getElementById('btnExpandChat').onclick = () => {
+            if (!currentSymbol) return;
+            largeChatBox.innerHTML = chatBox.innerHTML;
+            document.getElementById('modalTickerInfo').textContent = `${currentSymbol} - ${document.getElementById('resCompany').textContent}`;
+            largeChatModal.style.display = 'flex';
+            largeChatBox.scrollTop = largeChatBox.scrollHeight;
+            largeChatInput.focus();
+        };
+
+        document.getElementById('btnCloseLargeChat').onclick = () => { largeChatModal.style.display = 'none'; };
+
+        async function handleChat(message, isLarge = false) {
+            if (!message || !currentSymbol) return;
+            const input = isLarge ? largeChatInput : document.getElementById('chatInput');
+            const btn = isLarge ? document.getElementById('largeChatBtn') : document.getElementById('chatBtn');
+            
+            const savedData = JSON.parse(sessionStorage.getItem(`analysis_${currentSymbol.toUpperCase()}`));
+            const rawHistory = savedData ? savedData.rawHistory : null;
+
+            const append = (msg, role, isStatus = false) => {
+                const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                const div = document.createElement('div');
+                div.className = `message ${role}-message`;
+                if (isStatus) { 
+                    div.style.cssText = 'background:transparent; color:var(--text-muted); font-size:11px; font-style:italic; border:none; padding:4px 0;';
+                    div.innerHTML = msg;
+                } else {
+                    div.innerHTML = `<div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">${now}</div>${msg}`;
+                }
+                chatBox.appendChild(div.cloneNode(true));
+                largeChatBox.appendChild(div);
+                chatBox.scrollTop = chatBox.scrollHeight;
+                largeChatBox.scrollTop = largeChatBox.scrollHeight;
+                saveChatToSession();
+                return [chatBox.lastChild, largeChatBox.lastChild];
+            };
+
+            append(message, 'user');
+            input.value = ''; input.disabled = true; btn.disabled = true;
+            const statusEls = append('<span class="material-icons-round spin" style="font-size:12px;">sync</span> <span class="status-text">AI sedang berpikir...</span>', 'bot', true);
+
+            try {
+                const response = await fetch('/api/chat', { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ 
+                        symbol: currentSymbol, 
+                        message: message,
+                        history: rawHistory
+                    }) 
+                });
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                while (true) {
+                    const { value, done } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = JSON.parse(line.substring(6));
+                            if (data.status) statusEls.forEach(el => el.querySelector('.status-text').textContent = data.status);
+                            if (data.done) {
+                                statusEls.forEach(el => el.remove());
+                                if (data.reply) {
+                                    const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                                    const div = document.createElement('div');
+                                    div.className = 'message bot-message';
+                                    const cleanedReply = data.reply.replace(/^\[\d{1,2} [A-Za-z]{3} \d{4} \d{2}:\d{2}\] /, '')
+                                                                  .replace(/^\[\d{2}:\d{2}\] /, '');
+                                    const formatted = cleanedReply.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+                                    div.innerHTML = `<div style="font-size: 10px; opacity: 0.6; margin-bottom: 4px;">${now}</div>${formatted}`;
+                                    chatBox.appendChild(div.cloneNode(true));
+                                    largeChatBox.appendChild(div);
+                                    
+                                    const currentData = JSON.parse(sessionStorage.getItem(`analysis_${currentSymbol.toUpperCase()}`));
+                                    if (currentData) {
+                                        currentData.chatHtml = chatBox.innerHTML;
+                                        if (data.history) currentData.rawHistory = data.history;
+                                        sessionStorage.setItem(`analysis_${currentSymbol.toUpperCase()}`, JSON.stringify(currentData));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    chatBox.scrollTop = chatBox.scrollHeight;
+                    largeChatBox.scrollTop = largeChatBox.scrollHeight;
+                }
+            } catch (e) {
+                statusEls.forEach(el => el.remove());
+                append(`Error: ${e.message}`, 'bot');
+            } finally { input.disabled = false; btn.disabled = false; input.focus(); }
+        }
+
+        document.getElementById('chatForm').addEventListener('submit', (e) => { e.preventDefault(); handleChat(document.getElementById('chatInput').value.trim(), false); });
+        largeChatForm.addEventListener('submit', (e) => { e.preventDefault(); handleChat(largeChatInput.value.trim(), true); });
+        
+        async function loadArchives(symbol) {
+            const list = document.getElementById('resArchiveList');
+            if (!symbol) { list.innerHTML = ''; return; }
+            list.innerHTML = '<li class="news-item" style="color: var(--text-muted); padding:12px;">Memuat arsip...</li>';
+            try {
+                const response = await fetch(`/api/news_archive/${symbol}`);
+                const data = await response.json();
+                list.innerHTML = '';
+                if (data.archives && data.archives.length > 0) {
+                    data.archives.forEach(a => {
+                        const li = document.createElement('li');
+                        li.className = 'news-item';
+                        li.style.display = 'flex';
+                        li.style.justifyContent = 'space-between';
+                        li.style.alignItems = 'center';
+                        
+                        const aTag = document.createElement('a');
+                        aTag.href = a.url;
+                        aTag.target = '_blank';
+                        aTag.textContent = a.title || a.url;
+                        aTag.style.flex = '1';
+                        
+                        const delBtn = document.createElement('button');
+                        delBtn.innerHTML = '<span class="material-icons-round" style="font-size: 16px;">delete</span>';
+                        delBtn.className = 'btn-icon';
+                        delBtn.style.color = 'var(--sell)';
+                        delBtn.onclick = async (e) => {
+                            e.preventDefault();
+                            if(await appConfirm('Hapus arsip ini?')) {
+                                await fetch(`/api/news_archive/${a.id}`, { method: 'DELETE' });
+                                loadArchives(symbol);
+                            }
+                        };
+                        
+                        li.appendChild(aTag);
+                        li.appendChild(delBtn);
+                        list.appendChild(li);
+                    });
+                } else {
+                    list.innerHTML = '<li class="news-item" style="color: var(--text-muted); padding:12px;">Belum ada arsip.</li>';
+                }
+            } catch (e) {
+                list.innerHTML = `<li class="news-item" style="color: var(--sell); padding:12px;">Error memuat arsip.</li>`;
+            }
+        }
+
+        document.getElementById('formAddArchive').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!currentSymbol) return;
+            const urlInput = document.getElementById('archiveUrl');
+            const titleInput = document.getElementById('archiveTitle');
+            const btn = e.target.querySelector('button');
+            const url = urlInput.value.trim();
+            const title = titleInput.value.trim();
+            
+            btn.disabled = true;
+            try {
+                const response = await fetch('/api/news_archive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: currentSymbol, url, title })
+                });
+                if (response.ok) {
+                    urlInput.value = '';
+                    titleInput.value = '';
+                    loadArchives(currentSymbol);
+                }
+            } catch (err) {
+                console.error(err);
+                alert("Gagal menyimpan arsip");
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        updateRecentAnalysesList();
+
+        function toggleAgentTrail() {
+            const content = document.getElementById('agentTrailContent');
+            const icon = document.getElementById('trailIcon');
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                icon.textContent = 'expand_less';
+            } else {
+                content.style.display = 'none';
+                icon.textContent = 'expand_more';
+            }
+        }
+    </script>
+
+    <script>
+        function updateClock() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            const s = String(now.getSeconds()).padStart(2, '0');
+            document.getElementById('digitalClock').textContent = h + ":" + m + ":" + s;
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        async function updateTicker() {
+            try {
+                const response = await fetch('/api/watchlist');
+                const data = await response.json();
+                const tickerEl = document.getElementById('stockTicker');
+                
+                if (!data || data.length === 0) {
+                    tickerEl.innerHTML = '<span class="ticker-item">Watchlist kosong</span>';
+                    return;
+                }
+
+                let html = '';
+                // Duplicate data to ensure continuous scrolling
+                const displayData = [...data, ...data]; // Duplikasi 2x untuk seamless loop 
+                displayData.forEach(stock => {
+                    const isUp = stock.change >= 0;
+                    const colorClass = isUp ? 'ticker-up' : 'ticker-down';
+                    const icon = isUp ? '▲' : '▼';
+                    html += '<span class="ticker-item ' + colorClass + '">' + 
+                            stock.ticker + ' ' + stock.price.toLocaleString() + ' ' +
+                            '<span style="font-size: 10px;">' + icon + ' ' + Math.abs(stock.change_pct) + '%</span>' +
+                            '</span>';
+                });
+                tickerEl.innerHTML = html;
+            } catch (e) {
+                console.error("Gagal update ticker:", e);
+            }
+        }
+        setInterval(updateTicker, 60000); // Update setiap 1 menit
+        updateTicker();
+    </script>
+</body>
+</html>

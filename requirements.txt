@@ -1,0 +1,25 @@
+# ============================================================================
+# AlatBantuTrading - Dependency Requirements
+# Pastikan menggunakan versi stabil ini untuk menghindari konflik DLL/WDAC
+# ============================================================================
+
+# Web Server Backend
+flask>=3.0.0
+
+# HTTP & API Clients
+requests>=2.31.0
+aiohttp>=3.9.0
+
+# Data Analysis & Calculations (Wajib pandas 2.2.3 untuk kestabilan Windows 11)
+pandas==2.2.3
+numpy>=1.26.0
+python-dateutil>=2.8.2
+pytz>=2023.3
+
+# Data Sources & Financial Scrapers
+yfinance>=0.2.36
+beautifulsoup4>=4.12.0
+selenium>=4.18.0
+
+# Charting & Visualization
+matplotlib>=3.8.0

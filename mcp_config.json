@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "alatbantu-trading": {
+      "command": "python",
+      "args": [
+        "C:/Users/aminm/AlatBantuTrading/mcp-server/server.py"
+      ],
+      "env": {
+        "WEB_API_URL": "http://127.0.0.1:5000"
+      }
+    }
+  }
+}

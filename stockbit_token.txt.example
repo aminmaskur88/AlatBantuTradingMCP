@@ -1,0 +1,4 @@
+# Masukkan Stockbit Bearer Token Anda di bawah ini
+# Format: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI... atau hanya string token
+# Ganti dengan token Stockbit asli Anda dan simpan sebagai stockbit_token.txt
+Bearer YOUR_STOCKBIT_BEARER_TOKEN_HERE

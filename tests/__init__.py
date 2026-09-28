@@ -1,0 +1,3 @@
+"""
+AlatBantuTrading Test Suite
+"""

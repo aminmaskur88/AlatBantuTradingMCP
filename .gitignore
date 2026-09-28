@@ -1,0 +1,84 @@
+# ============================================================================
+# AlatBantuTrading .gitignore
+# ============================================================================
+
+# Python & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+ENV*/
+
+# Secret & API Keys (STRICT - DO NOT COMMIT)
+.env
+*.env
+gemini_key.txt
+stockbit_token.txt
+config_api_keys
+*.pem
+*.key
+*.cert
+
+# Scratch & Temporary Folders
+scratch/
+tmp/
+temp/
+
+# Database & Runtime Data Cache
+data/*.db
+data/chat.db
+data/raw/*.json
+data/clean/*.json
+data/result/*.json
+data/historical/*.json
+data/metadata/*.json
+watchlist.json
+
+# Static Generated Assets
+static/charts/*.png
+static/charts/*.pdf
+static/test_charts/
+
+# Logs
+*.log
+logs/
+
+# Headless Browser / Selenium
+chrome_profile/
+chromedriver
+chromedriver.exe
+chromium-browser
+chromium.exe
+
+# IDE & OS Specific
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
